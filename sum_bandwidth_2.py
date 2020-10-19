@@ -230,6 +230,7 @@ def get_fiedler(weights) :
 
 # Returns the result of the spectral sequencing heuristic on a graph
 def spectral_sequencing(weights) :
+    n = len(weights)
     fiedler = get_fiedler(weights)
     order = [i for i in range(n)]
     order.sort(key=lambda i: fiedler[i])
