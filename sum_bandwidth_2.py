@@ -331,7 +331,7 @@ def best_mc_allister(weights, research='complete') :
             best_labels = labels
             best_sum = labels_sum
     return best_labels
-
+'''
 n = 500
 weights, points = generate_graph(n, 1000, 1000)
 edges = compute_edges(weights)
@@ -361,7 +361,7 @@ best_mc_allister_permutation = best_mc_allister(weights, research='partial')
 print("Best McAllister (partial search) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
 best_mc_allister_permutation = best_mc_allister(weights, research=10)
 print("Best McAllister (10 starts) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
-
+'''
 
 
 
