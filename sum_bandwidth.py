@@ -234,6 +234,7 @@ def best_permutation_gurobi(weights, deltas=True, paramfile=None) :
     
     return solution, bandwidth
 
+'''
 n = 14
 
 weights = generate_graph(n, 300, 300)
@@ -251,7 +252,7 @@ print("Lower bound : {}".format(bound))
 
 solution, bandwidth = best_permutation_gurobi(weights)
 solution, bandwidth = best_permutation_gurobi(weights, paramfile='gurobi_param.prm')
-
+'''
 
 def gurobi_tuning(weights, writefile, limit_time=600) :
     n = len(weights)
