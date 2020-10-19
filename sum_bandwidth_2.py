@@ -272,7 +272,7 @@ def mc_allister(weights, first='random') :
         first_labeled = first
     else :
         raise Exception("Value {} is not valid for the argument 'first'".format(first))
-    l = 1
+    l = 0
     labels[first_labeled] = l
     candidate = [False for i in range(n)]
     candidate_list = []
@@ -280,7 +280,7 @@ def mc_allister(weights, first='random') :
     for i in neighbors[first_labeled] :
         unlabeled_neighbors[i].remove(first_labeled)
         labeled_neighbors[i].append(first_labeled)
-    while l < n :
+    while l < n-1 :
         l += 1
         for i in unlabeled_neighbors[last_labeled] :
             if not candidate[i] :
