@@ -3,7 +3,7 @@ import pygsp
 import os
 import matplotlib.pyplot as plt
 import sum_bandwidth as smb
-import sum_bandwidth_2 as sbm2
+import sum_bandwidth_2 as smb2
 
 np.random.seed(0)
 OUTPUT_DIR = "output/"
@@ -83,13 +83,13 @@ def create_gaussian_kernel_graph(nb_vertices, **kwargs):
     """generate a graph with weights defined by a gaussian kernel
     kwargs contains X_size, Y_size, theta, kappa"""
     weights = smb.generate_graph(nb_vertices, **kwargs)
-    weights = np.array(weights)
     graph = create_graph_with_weights(weights)
     return graph
 
 
 def create_graph_with_weights(weights):
     """generate a graph with a given adjacency matrix (weights)"""
+    weights = np.array(weights)
     graph = pygsp.graphs.Graph(weights)
     graph.set_coordinates()
     graph.compute_fourier_basis()
@@ -216,33 +216,18 @@ def get_neighbors(graph, vertex):
     return neighbors
 
 
-
-
-def best_permutation_pulp_with_graph_structure(graph):
-    weights = get_adjacency_matrix(graph)
-    solution, bandwith = smb.best_permutation_pulp(weights)
-    return solution, bandwith
-
-
 def get_adjacency_matrix(graph):
     return [[graph.W[i,j] for i in range(graph.N)] for j in range(graph.N)]
 
 
-
-if __name__ == '__main__':
-    graph = create_gaussian_kernel_graph(10)
-    #get_neighbors(graph, 10)
-    best_permutation, bandwith = best_permutation_pulp_with_graph_structure(graph)
-
-    # We create 3 groups of vertices
-    groups = np.array([2] * (graph.N // 3) +
-                      [4] * (graph.N // 3) +
-                      [6] * (graph.N - 2 * graph.N // 3))
-    print(len(groups))
-    print(graph.N)
+def spectrogram_on_particular_case(graph, permutation):
+    groups = np.array([graph.N//10] * (graph.N // 3) +
+                      [graph.N//4] * (graph.N // 3) +
+                      [graph.N//2] * (graph.N - 2 * (graph.N // 3)))
 
     # We use a window defined by a heat kernel
     # Needs to be instanciated on a particular vertex to be the object we want
+
     kernel_scale = 10
     window_kernel = create_heat_kernel(graph, kernel_scale)
     # localized_kernel = window_kernel.localize(int(graph.N/2))
@@ -250,7 +235,7 @@ if __name__ == '__main__':
     x /= np.linalg.norm(x)
     # Plot
     plot_graph(graph, x)
-    spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=best_permutation)
+    spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=permutation)
     # Plot
     plot_matrix(spectrogram,
                 cols_title="Vertex",
@@ -259,5 +244,19 @@ if __name__ == '__main__':
                 rows_labels=range(graph.N),
                 title="Spectrogram",
                 colorbar=True)
+
+
+
+if __name__ == '__main__':
+    Xsize = 300
+    Ysize = 300
+    graph = create_gaussian_kernel_graph(100, Xsize=Xsize, Ysize=Ysize)
+    weights = get_adjacency_matrix(graph)
+    #best_permutation = smb2.spectral_sequencing(weights)
+    best_permutation = smb2.mc_allister(weights)
+    print(f'value of bandwith sum found  : {smb2.bandwidth_sum(best_permutation, weights)}')
+    spectrogram_on_particular_case(graph, best_permutation)
+
+
 
 
