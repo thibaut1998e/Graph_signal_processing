@@ -192,10 +192,10 @@ def compute_graph_spectrogram(graph, signal, window_kernel, permutation=None):
     # We localize the window everywhere and report the frequencies
     if permutation is None: permutation=range(graph.N)
     spectrogram = np.zeros((graph.N, graph.N))
-    for i in permutation:
+    for i in range(len(permutation)):
         window = window_kernel.localize(i)
         windowed_signal = window * signal
-        spectrogram[:, i] = graph.gft(windowed_signal) ** 2
+        spectrogram[:, permutation[i]] = graph.gft(windowed_signal) ** 2
     return spectrogram
 
 
