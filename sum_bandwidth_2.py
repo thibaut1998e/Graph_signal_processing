@@ -19,13 +19,15 @@ import random as rd
 import copy as cp
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import reverse_cuthill_mckee
+from local_search import *
+from graph_spectrogram import *
 
 # Calculates the distance between two points in 2 dimensions
 def distance(point1, point2) :
     return np.sqrt((fst(point1) - fst(point2)) **2 + (snd(point1) - snd(point2)) **2)
 
 # Generates a random set of points in a 2D space, then links them to obtain a weighted undirected graph
-def generate_graph(numberVertices, Xsize=600, Ysize=600, theta=50, kappa=100):
+def generate_graph(numberVertices, Xsize=600, Ysize=600, theta=50, kappa=100, distances=False):
     points = []
     for i in range(numberVertices) :
         newPoint = (rd.randint(0, Xsize-1), rd.randint(0, Ysize-1))
@@ -37,22 +39,37 @@ def generate_graph(numberVertices, Xsize=600, Ysize=600, theta=50, kappa=100):
             if i == j :
                 line.append(0)
             else :
-                dist = distance(points[i], points[j])
-                if dist <= kappa :
-                    line.append(round(np.exp(- dist **2 / (2 * theta **2)), 2))
+                if abs(fst(points[i]) - fst(points[j])) <= kappa or abs(snd(points[i]) - snd(points[j])) <= kappa :
+                    dist = distance(points[i], points[j])
+                    if dist <= kappa :
+                        if distances :
+                            line.append(round(np.exp(- dist **2 / (2 * theta **2)), 2))
+                        else :
+                            line.append(1)
+                    else :
+                        line.append(0)
                 else :
                     line.append(0)
         weights.append(line)
     return weights, points
 
-# Returns the result of the Cuthill-McKee heuristic computed on a matrix of weights
-def get_cuthill_mckee(weights) :
-    graph = csr_matrix(weights)
-    order = reverse_cuthill_mckee(graph)
-    permutation = [0 for i in range(len(weights))]
-    for i in range(len(weights)) :
-        permutation[order[i]] = i
-    return permutation
+def is_connected(weights) :
+    n = len(weights)
+    accessed = [False for i in range(n)]
+    accessed[0] = True
+    queue = [0]
+    while queue != [] :
+        node = queue.pop(0)
+        for i in range(n) :
+            if weights[node][i] != 0 and not accessed[i] :
+                accessed[i] = True
+                queue.append(i)
+    for i in range(n) :
+        if not accessed[i] :
+            return False
+    return True
+
+
 
 # Computes the bandwidth sum of a permutation (or linear arrangement) of nodes linked through the given weights matrix
 def bandwidth_sum(permutation, weights) :
@@ -220,6 +237,15 @@ def weights_to_pygsp_graph(weights) :
                 weights_numpy[i][j] = weights[i][j]
     return pygsp.graphs.Graph(weights_numpy)
 
+# Returns the result of the Cuthill-McKee heuristic computed on a matrix of weights
+def get_cuthill_mckee(weights) :
+    graph = csr_matrix(weights)
+    order = reverse_cuthill_mckee(graph)
+    permutation = [0 for i in range(len(weights))]
+    for i in range(len(weights)) :
+        permutation[order[i]] = i
+    return permutation
+
 # Returns the Fiedler vector of a graph
 # The Fiedler vector of a graph is the eigenvector corresponding to its 2nd smallest eigenvalue
 def get_fiedler(weights) :
@@ -253,7 +279,7 @@ def plot_graph(weights, points) :
 # Returns the result of the McAllister heuristic on a graph
 # The starting point of the iterative process can be chosen to be random,
 # or the node with the lowest degree, or a specific chose node
-def mc_allister(weights, first='random') :
+def mc_allister(weights, first='random', print_time=False) :
     t0 = time()
     n = len(weights)
     neighbors = compute_neighbors(weights)
@@ -298,7 +324,8 @@ def mc_allister(weights, first='random') :
         for i in neighbors[best_candidate] :
             unlabeled_neighbors[i].remove(best_candidate)
             labeled_neighbors[i].append(best_candidate)
-    #print("McAllister computing time : {} seconds".format(time() - t0))
+    if print_time :
+        print("McAllister computing time : {} seconds".format(time() - t0))
     return labels
 
 # Computes the McAllister heuristic with several starting points and
@@ -332,39 +359,131 @@ def best_mc_allister(weights, research='complete') :
             best_labels = labels
             best_sum = labels_sum
     return best_labels
-'''
-n = 500
-weights, points = generate_graph(n, 1000, 1000)
-edges = compute_edges(weights)
-print("Number of nodes : {}".format(n))
-print("Number of edges : {}".format(len(edges)))
-edges_bound = edges_lower_bound(weights)
-vertex_bound = vertex_lower_bound(weights)
-juvan_mohar_bound = juvan_mohar_lower_bound(weights)
-print("Edges lower bound : {}".format(edges_bound))
-print("Vertex lower bound : {}".format(vertex_bound))
-print("Juvan-Mohar lower bound : {}".format(juvan_mohar_bound))
-default_permutation = [i for i in range(n)]
-print("Bandwidth with default order : {}".format(bandwidth_sum(default_permutation, weights)))
-CM_permutation = get_cuthill_mckee(weights)
-#print("CM permutation : {}".format(CM_permutation))
-print("CM bandwidth sum : {}".format(bandwidth_sum(CM_permutation, weights)))
-SS_permutation = spectral_sequencing(weights)
-#print("SS permutation : {}".format(SS_permutation))
-print("SS bandwidth sum : {}".format(bandwidth_sum(SS_permutation, weights)))
-mc_allister_permutation = mc_allister(weights, first='random')   
-print("McAllister bandwidth with random start : {}".format(bandwidth_sum(mc_allister_permutation, weights)))
-mc_allister_permutation = mc_allister(weights, first='lowest_degree')
-print("McAllister bandwidth with lowest degree start : {}".format(bandwidth_sum(mc_allister_permutation, weights)))
-#best_mc_allister_permutation = best_mc_allister(weights)
-#print("Best McAllister (complete search) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
-best_mc_allister_permutation = best_mc_allister(weights, research='partial')
-print("Best McAllister (partial search) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
-best_mc_allister_permutation = best_mc_allister(weights, research=10)
-print("Best McAllister (10 starts) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
-'''
 
+def get_median(L) :
+    L.sort()
+    n = len(L)
+    if n % 2 == 0 :
+        return (L[n // 2 - 1] + L[n // 2]) // 2
+    else :
+        return L[n // 2]
 
+def median_of_neighbors(weights, neighbors, solution, vertex) :
+    vertex_neighbors = neighbors[vertex]
+    vertex_neighbors_values = [solution[i] for i in vertex_neighbors]
+    return get_median(vertex_neighbors_values)
 
+def median_improvement(weights, solution) :
+    n = len(weights)
+    neighbors = compute_neighbors(weights)
+    medians = []
+    for i in range(n) :
+        medians.append(median_of_neighbors(weights, neighbors, solution, i))
+    order = [i for i in range(n)]
+    order.sort(key=lambda i: medians[i])
+    arrangement = [0 for i in range(n)]
+    for i in range(n) :
+        arrangement[order[i]] = i
+    return arrangement
+    
+def hash_func(solution) :
+    return hash(tuple(solution))
 
+def median_improvement_while_benefitial(weights, solution, stop_criterion='local_improvement') :
+    old_solution = cp.deepcopy(solution)
+    old_solution_score = bandwidth_sum(old_solution, weights)
+    best_solution, best_score = cp.deepcopy(old_solution), old_solution_score
+    new_solution = median_improvement(weights, old_solution)
+    new_solution_score = bandwidth_sum(new_solution, weights)
+    hash_table = {hash_func(old_solution): old_solution}
+    nb_iterations = 1
+    scores = [old_solution_score, new_solution_score]
+    def condition(new_solution_score, old_solution_score, nb_iterations) :
+        if stop_criterion == 'local_improvement' :
+            return new_solution_score < old_solution_score
+        elif stop_criterion == 'repetition' :
+            return True
+        elif type(stop_criterion) == int :
+            return nb_iterations < stop_criterion
+        else :
+            raise Exception("Unvalid value for stop_criterion")
+    while condition(new_solution_score, old_solution_score, nb_iterations) and hash_func(new_solution) not in hash_table :
+        hash_table[hash_func(new_solution)] = new_solution
+        if new_solution_score < best_score :
+            best_solution, best_score = cp.deepcopy(new_solution), new_solution_score
+        old_solution = new_solution
+        old_solution_score = new_solution_score
+        new_solution = median_improvement(weights, old_solution)
+        new_solution_score = bandwidth_sum(new_solution, weights)
+        nb_iterations += 1
+        scores.append(new_solution_score)
+    print(scores)
+    return best_solution
 
+def weights_from_file(filename) :
+    g = open(filename, 'r')
+    content = [line.split() for line in g]
+    n = int(content[0][2])
+    weights = [[0 for j in range(n)] for i in range(n)]
+    for line in content[1 :] :
+        i, j, weight = int(line[1])-1, int(line[2])-1, float(line[3])
+        weights[i][j] = weight
+        weights[j][i] = weight
+    return weights
+
+if __name__ == '__main__':
+    
+    n = 100
+    size = 300
+    weights, points = generate_graph(n, size, size)
+    while not is_connected(weights) :
+        weights, points = generate_graph(n, size, size)
+    graph = create_graph_with_weights(weights)
+    #plot_graph(weights, points)
+    '''
+    file = 'gd96b.rmf'
+    weights = weights_from_file(file)
+    n = len(weights)
+    '''
+    edges = compute_edges(weights)
+    print("Number of nodes : {}".format(n))
+    print("Number of edges : {}".format(len(edges)))
+    edges_bound = edges_lower_bound(weights)
+    vertex_bound = vertex_lower_bound(weights)
+    juvan_mohar_bound = juvan_mohar_lower_bound(weights)
+    print("Edges lower bound : {}".format(edges_bound))
+    print("Vertex lower bound : {}".format(vertex_bound))
+    print("Juvan-Mohar lower bound : {}".format(juvan_mohar_bound))
+    default_permutation = [i for i in range(n)]
+    print("Bandwidth with default order : {}".format(bandwidth_sum(default_permutation, weights)))
+    CM_permutation = get_cuthill_mckee(weights)
+    #print("CM permutation : {}".format(CM_permutation))
+    print("CM bandwidth sum : {}".format(bandwidth_sum(CM_permutation, weights)))
+    SS_permutation = spectral_sequencing(weights)
+    #print("SS permutation : {}".format(SS_permutation))
+    print("SS bandwidth sum : {}".format(bandwidth_sum(SS_permutation, weights)))
+    mc_allister_permutation = mc_allister(weights, first='random')   
+    print("McAllister bandwidth with random start : {}".format(bandwidth_sum(mc_allister_permutation, weights)))
+    mc_allister_permutation = mc_allister(weights, first='lowest_degree')
+    print("McAllister bandwidth with lowest degree start : {}".format(bandwidth_sum(mc_allister_permutation, weights)))
+    #best_mc_allister_permutation = best_mc_allister(weights)
+    #print("Best McAllister (complete search) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
+    best_mc_allister_permutation = best_mc_allister(weights, research='partial')
+    print("Best McAllister (partial search) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
+    best_mc_allister_permutation = best_mc_allister(weights, research=10)
+    print("Best McAllister (10 starts) bandwidth : {}".format(bandwidth_sum(best_mc_allister_permutation, weights)))
+    sol, val = local_search(best_mc_allister_permutation, graph)
+    local_search_solution = sol
+    print(f"Value of the solution after local search until convergence (from McAllister solution) : {bandwidth_sum(local_search_solution, weights)}")
+    improved_solution = median_improvement(weights, best_mc_allister_permutation)
+    print(f"Value of the solution after one median improvement : {bandwidth_sum(improved_solution, weights)}")
+    further_improved_solution = median_improvement_while_benefitial(weights, improved_solution)
+    print(f"Value of the solution after locally optimal median improvement : {bandwidth_sum(further_improved_solution, weights)}")
+    further_improved_solution = median_improvement_while_benefitial(weights, further_improved_solution, stop_criterion='repetition')
+    print(f"Value of the solution after median improvements until repetition : {bandwidth_sum(further_improved_solution, weights)}")
+    
+    sol, val = local_search(further_improved_solution, graph)
+    local_search_solution = sol
+    print(f"Value of the solution after local search until convergence (from median-improved solution) : {bandwidth_sum(local_search_solution, weights)}")
+    further_improved_solution = median_improvement_while_benefitial(weights, local_search_solution, stop_criterion='repetition')
+    print(f"Value of the solution after median improvements until repetition : {bandwidth_sum(further_improved_solution, weights)}")
