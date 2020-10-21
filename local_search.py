@@ -14,16 +14,20 @@ def swap_neighbour_iterator(permutation, graph):
     for i in range(n):
         for j in range(i+1, n):
             if weights[i][j] != 0:
-
                 neighbour = cp.copy(permutation)
                 neighbour[i], neighbour[j] = neighbour[j], neighbour[i]
-                vertices_connected_to_i = get_neighbors(graph, i)
-                vertices_connected_to_j = get_neighbors(graph, j)
-                bandwith_variation = sum([abs(neighbour[k]-neighbour[i]) for k in vertices_connected_to_i])\
-                                    + sum([abs(neighbour[k]-neighbour[j]) for k in vertices_connected_to_j])\
-                                    - sum([abs(permutation[k]-permutation[i]) for k in vertices_connected_to_i])\
-                                    - sum([abs(permutation[k] - permutation[j]) for k in vertices_connected_to_j])
+                bandwith_variation = compute_bandwith_variation(graph, neighbour, permutation, i, j)
                 yield neighbour, bandwith_variation
+
+
+def compute_bandwith_variation(graph, res_permutation, init_permutation, i, j):
+    vertices_connected_to_i = get_neighbors(graph, i)
+    vertices_connected_to_j = get_neighbors(graph, j)
+    bandwith_variation = sum([abs(res_permutation[k] - res_permutation[i]) for k in vertices_connected_to_i]) \
+                         + sum([abs(res_permutation[k] - res_permutation[j]) for k in vertices_connected_to_j]) \
+                         - sum([abs(init_permutation[k] - init_permutation[i]) for k in vertices_connected_to_i]) \
+                         - sum([abs(init_permutation[k] - init_permutation[j]) for k in vertices_connected_to_j])
+    return bandwith_variation
 
 
 def local_search(initial_solution, graph, neighbour_iterator=swap_neighbour_iterator,
@@ -31,12 +35,10 @@ def local_search(initial_solution, graph, neighbour_iterator=swap_neighbour_iter
 
     weights = get_adjacency_matrix(graph)
     bandwith = bandwidth_sum(initial_solution, weights)
-    temps_evaluation = 0
     best_value = 1000000
     best_sol = cp.copy(initial_solution)
     stop = False
     cpt = 0
-    #print(cpt)
     while not stop and cpt < nb_max_iter:
         print('iteration', cpt)
         solution = cp.copy(best_sol)
@@ -48,8 +50,6 @@ def local_search(initial_solution, graph, neighbour_iterator=swap_neighbour_iter
         bandwith = best_value
         stop = (solution == best_sol)
         cpt += 1
-    print('temps eval', temps_evaluation)
-
     return best_sol, best_value
 
 
