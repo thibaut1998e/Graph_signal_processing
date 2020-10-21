@@ -4,16 +4,17 @@ from sum_bandwidth_2 import bandwidth_sum
 from graph_spectrogram import *
 import time
 
+time_to_compute_variation = 0
 
 def swap_neighbour_iterator(permutation, graph):
     """iterator on neighboors of permutation
     Neighboorhood is defined as all the permutation that we can get by switching 2 vertices connected by
     an edge"""
-    weights = get_adjacency_matrix(graph)
+
     n = graph.N
     for i in range(n):
         for j in range(i+1, n):
-            if weights[i][j] != 0:
+            if graph.W[i,j] != 0:
                 neighbour = cp.copy(permutation)
                 neighbour[i], neighbour[j] = neighbour[j], neighbour[i]
                 bandwith_variation = compute_bandwith_variation(graph, neighbour, permutation, i, j)
@@ -21,12 +22,15 @@ def swap_neighbour_iterator(permutation, graph):
 
 
 def compute_bandwith_variation(graph, res_permutation, init_permutation, i, j):
+    global time_to_compute_variation
+    t = time.time()
     vertices_connected_to_i = get_neighbors(graph, i)
     vertices_connected_to_j = get_neighbors(graph, j)
     bandwith_variation = sum([abs(res_permutation[k] - res_permutation[i]) for k in vertices_connected_to_i]) \
                          + sum([abs(res_permutation[k] - res_permutation[j]) for k in vertices_connected_to_j]) \
                          - sum([abs(init_permutation[k] - init_permutation[i]) for k in vertices_connected_to_i]) \
                          - sum([abs(init_permutation[k] - init_permutation[j]) for k in vertices_connected_to_j])
+    time_to_compute_variation += (time.time()-t)
     return bandwith_variation
 
 
@@ -60,18 +64,24 @@ if __name__ == '__main__':
     graph = create_gaussian_kernel_graph(N, Xsize=Xsize, Ysize=Ysize)
     weights = get_adjacency_matrix(graph)
     # best_permutation = smb2.spectral_sequencing(weights)
-    permutation_allister = smb2.mc_allister(weights)
-    print(f'value of bandwith sum found with allister : {bandwidth_sum(permutation_allister, weights)}, solution found'
-          f'{permutation_allister}')
-    spectrogram_on_particular_case(graph, permutation_allister)
+    #permutation_allister = smb2.mc_allister(weights)
+    #print(f'value of bandwith sum found with allister : {bandwidth_sum(permutation_allister, weights)}, solution found'
+          #f'{permutation_allister}')
+    #spectrogram_on_particular_case(graph, permutation_allister)
 
     initial_solution = list(range(N))
+    t = time.time()
     permutation_local_search, best_val = local_search(initial_solution, graph)
+    full_time = time.time() - t
+
     print('best_val', best_val)
     print(f'with local search {bandwidth_sum(permutation_local_search, weights)}, '
           f'solution found {permutation_local_search}')
+    print('time to compute variation', time_to_compute_variation)
+    print('full time', full_time)
 
     spectrogram_on_particular_case(graph, permutation_local_search)
+
 
 
 
