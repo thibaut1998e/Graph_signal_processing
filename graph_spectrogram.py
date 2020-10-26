@@ -249,33 +249,45 @@ def spectrogram_on_particular_case(graph, permutation, file_name=None):
 
 
 def create_groups_with_bfs(graph, nb_groups=3):
-
+    N = graph.N
     weights = get_adjacency_matrix(graph)
-    nghbs = [get_neighbors(graph, i) for i in range(graph.N)]
+    if not smb2.is_connected(weights) :
+        raise Exception("Error : the graph is not connected.")
+    mult = 10 if N > nb_groups * 10 else N // nb_groups - 1
+    nghbs = [get_neighbors(graph, i) for i in range(N)]
     #groups = [[] for _ in range(nb_groups)]
     explored_vertices = []
+    groups = [0]*N
     for g in range(nb_groups):
 
         initial_vertex = np.random.randint(0, len(weights)-1)
         while initial_vertex in explored_vertices:
             initial_vertex = np.random.randint(0, len(weights)-1)
         vertices_to_explore = [initial_vertex]
-        while len(explored_vertices) < (g+1)*graph.N//nb_groups:
+        while len(explored_vertices) < (g+1)*N//nb_groups + N%nb_groups and vertices_to_explore != [] :
             current_vertex = vertices_to_explore.pop(0)
             explored_vertices.append(current_vertex)
+            groups[current_vertex] = mult*(g+1)
             vertices_to_explore += [n for n in nghbs[current_vertex] if n not in explored_vertices and n not in vertices_to_explore]
-
-    value_for_each_group = [10*(i+1) for i in range(nb_groups)]
-    groups = [0]*graph.N
-    for i in range(len(explored_vertices)):
-        groups[explored_vertices[i]] = value_for_each_group[i//(graph.N//nb_groups)]
-
+    
+    while len(explored_vertices) < N :
+        for i in range(N) :
+            if groups[i] == 0 :
+                for n in nghbs[i] :
+                    if groups[n] != 0 :
+                        groups[i] = groups[n]
+                        explored_vertices.append(i)
+                        break
+    
     return np.array(groups)
 
-
-
-
-
+def spectrogram_with_groups(graph, groups) :
+    kernel_scale = 10
+    window_kernel = create_heat_kernel(graph, kernel_scale)
+    x = np.array([graph.U[i, int(groups[i])] for i in range(graph.N)])
+    x /= np.linalg.norm(x)
+    spectrogram = compute_graph_spectrogram(graph, x, window_kernel)
+    return spectrogram
 
 if __name__ == '__main__':
     from local_search import local_search
