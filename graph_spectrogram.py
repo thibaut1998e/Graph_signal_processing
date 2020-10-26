@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import sum_bandwidth as smb
 import sum_bandwidth_2 as smb2
 
+
 np.random.seed(0)
 OUTPUT_DIR = "output/"
 
@@ -57,7 +58,7 @@ def create_sbm_graph(graph_order):
     groups = np.array(
         [0] * (graph_order // 3) + [1] * (graph_order // 3) + [2] * (graph_order - 2 * graph_order // 3))
     graph = pygsp.graphs.StochasticBlockModel(graph_order, k=3, z=groups, p=[0.4, 0.6, 0.3], q=0.02)
-    graph.set_coordinates(kind="spring", seed=np.random.randint(2 ** 32))
+    graph.set_coordinates(kind="spring")
     graph.compute_fourier_basis()
     return graph
 
@@ -220,7 +221,7 @@ def get_adjacency_matrix(graph):
     return [[graph.W[i,j] for i in range(graph.N)] for j in range(graph.N)]
 
 
-def spectrogram_on_particular_case(graph, permutation):
+def spectrogram_on_particular_case(graph, permutation, file_name=None):
     groups = np.array([graph.N//10] * (graph.N // 3) +
                       [graph.N//4] * (graph.N // 3) +
                       [graph.N//2] * (graph.N - 2 * (graph.N // 3)))
@@ -234,7 +235,7 @@ def spectrogram_on_particular_case(graph, permutation):
     x = np.array([graph.U[i, int(groups[i])] for i in range(graph.N)])
     x /= np.linalg.norm(x)
     # Plot
-    plot_graph(graph, x)
+    plot_graph(graph, groups)
     spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=permutation)
     # Plot
     plot_matrix(spectrogram,
@@ -243,18 +244,62 @@ def spectrogram_on_particular_case(graph, permutation):
                 rows_title="Eigenvalue index",
                 rows_labels=range(graph.N),
                 title="Spectrogram",
-                colorbar=True)
+                colorbar=True,
+                file_name=file_name)
+
+
+def create_groups_with_bfs(graph, nb_groups=3):
+
+    weights = get_adjacency_matrix(graph)
+    nghbs = [get_neighbors(graph, i) for i in range(graph.N)]
+    #groups = [[] for _ in range(nb_groups)]
+    explored_vertices = []
+    for g in range(nb_groups):
+
+        initial_vertex = np.random.randint(0, len(weights)-1)
+        while initial_vertex in explored_vertices:
+            initial_vertex = np.random.randint(0, len(weights)-1)
+        vertices_to_explore = [initial_vertex]
+        while len(explored_vertices) < (g+1)*graph.N//nb_groups:
+            current_vertex = vertices_to_explore.pop(0)
+            explored_vertices.append(current_vertex)
+            vertices_to_explore += [n for n in nghbs[current_vertex] if n not in explored_vertices and n not in vertices_to_explore]
+
+    value_for_each_group = [10*(i+1) for i in range(nb_groups)]
+    groups = [0]*graph.N
+    for i in range(len(explored_vertices)):
+        groups[explored_vertices[i]] = value_for_each_group[i//(graph.N//nb_groups)]
+
+    return np.array(groups)
+
+
+
 
 
 
 if __name__ == '__main__':
-    Xsize = 300
-    Ysize = 300
-    graph = create_gaussian_kernel_graph(100, Xsize=Xsize, Ysize=Ysize)
+    from local_search import local_search
+    Xsize = 250
+    Ysize = 250
+    #graph = create_gaussian_kernel_graph(100, Xsize=Xsize, Ysize=Ysize)
+    graph = create_gaussian_kernel_graph(90, Xsize=Xsize, Ysize=Ysize)
+    groups = create_groups_with_bfs(graph, nb_groups=3)
+    print(groups.shape)
+    print(groups)
+    plot_graph(graph, groups)
+
+
+
     weights = get_adjacency_matrix(graph)
     #best_permutation = smb2.spectral_sequencing(weights)
     best_permutation = smb2.mc_allister(weights)
     print(f'value of bandwith sum found  : {smb2.bandwidth_sum(best_permutation, weights)}')
+
+    best_permutation, best_value = local_search(best_permutation, graph)
+    print(best_permutation)
+    print(f'value of bandwith sum found  : {smb2.bandwidth_sum(best_permutation, weights)}')
+
+    print(best_permutation)
     spectrogram_on_particular_case(graph, best_permutation)
 
 
