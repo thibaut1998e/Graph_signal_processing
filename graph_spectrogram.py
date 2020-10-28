@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import sum_bandwidth as smb
 import sum_bandwidth_2 as smb2
 
-
 np.random.seed(0)
 OUTPUT_DIR = "output/"
 
@@ -42,8 +41,6 @@ def create_path_graph(graph_order):
     return graph
 
 
-
-
 """
     Creates a stochastic block model.
     --
@@ -52,6 +49,7 @@ def create_path_graph(graph_order):
     Out:
         * graph: A PyGSP path graph.
 """
+
 
 def create_sbm_graph(graph_order):
     # PyGSP function
@@ -97,7 +95,6 @@ def create_graph_with_weights(weights):
     return graph
 
 
-
 """
     Plots a PyGSP graph.
     --
@@ -127,8 +124,7 @@ def plot_graph(graph, signal=None, title="", file_name=None):
 
     # Save
     if file_name is not None:
-        create_directory_for(file_name)
-        figure.savefig(file_name)
+        figure.savefig(file_name, bbox_inches="tight")
 
 
 """
@@ -146,8 +142,8 @@ def plot_graph(graph, signal=None, title="", file_name=None):
         * None.
 """
 
-def create_heat_kernel (graph, scale) :
 
+def create_heat_kernel(graph, scale):
     # PyGSP kernel
     kernel = pygsp.filters.Heat(graph, scale, normalize=True)
     return kernel
@@ -185,13 +181,13 @@ def plot_matrix(matrix, rows_labels="", cols_labels="", rows_title="", cols_titl
 
     # Save
     if file_name is not None:
-        create_directory_for(file_name)
+        #plt.savefig(file_name)
         figure.savefig(file_name, bbox_inches="tight")
 
 
 def compute_graph_spectrogram(graph, signal, window_kernel, permutation=None):
     # We localize the window everywhere and report the frequencies
-    if permutation is None: permutation=range(graph.N)
+    if permutation is None: permutation = range(graph.N)
     spectrogram = np.zeros((graph.N, graph.N))
     for i in range(len(permutation)):
         window = window_kernel.localize(i)
@@ -218,13 +214,13 @@ def get_neighbors(graph, vertex):
 
 
 def get_adjacency_matrix(graph):
-    return [[graph.W[i,j] for i in range(graph.N)] for j in range(graph.N)]
+    return [[graph.W[i, j] for i in range(graph.N)] for j in range(graph.N)]
 
 
 def spectrogram_on_particular_case(graph, permutation, file_name=None):
-    groups = np.array([graph.N//10] * (graph.N // 3) +
-                      [graph.N//4] * (graph.N // 3) +
-                      [graph.N//2] * (graph.N - 2 * (graph.N // 3)))
+    groups = np.array([graph.N // 10] * (graph.N // 3) +
+                      [graph.N // 4] * (graph.N // 3) +
+                      [graph.N // 2] * (graph.N - 2 * (graph.N // 3)))
 
     # We use a window defined by a heat kernel
     # Needs to be instanciated on a particular vertex to be the object we want
@@ -251,59 +247,72 @@ def spectrogram_on_particular_case(graph, permutation, file_name=None):
 def create_groups_with_bfs(graph, nb_groups=3):
     N = graph.N
     weights = get_adjacency_matrix(graph)
-    if not smb2.is_connected(weights) :
+    if not smb2.is_connected(weights):
         raise Exception("Error : the graph is not connected.")
     mult = 10 if N > nb_groups * 10 else N // nb_groups - 1
     nghbs = [get_neighbors(graph, i) for i in range(N)]
-    #groups = [[] for _ in range(nb_groups)]
+    # groups = [[] for _ in range(nb_groups)]
     explored_vertices = []
-    groups = [0]*N
+    groups = [0] * N
     for g in range(nb_groups):
 
-        initial_vertex = np.random.randint(0, len(weights)-1)
+        initial_vertex = np.random.randint(0, len(weights) - 1)
         while initial_vertex in explored_vertices:
-            initial_vertex = np.random.randint(0, len(weights)-1)
+            initial_vertex = np.random.randint(0, len(weights) - 1)
         vertices_to_explore = [initial_vertex]
-        while len(explored_vertices) < (g+1)*N//nb_groups + N%nb_groups and vertices_to_explore != [] :
+        while len(explored_vertices) < (g + 1) * N // nb_groups + N % nb_groups and vertices_to_explore != []:
             current_vertex = vertices_to_explore.pop(0)
             explored_vertices.append(current_vertex)
-            groups[current_vertex] = mult*(g+1)
-            vertices_to_explore += [n for n in nghbs[current_vertex] if n not in explored_vertices and n not in vertices_to_explore]
-    
-    while len(explored_vertices) < N :
-        for i in range(N) :
-            if groups[i] == 0 :
-                for n in nghbs[i] :
-                    if groups[n] != 0 :
+            groups[current_vertex] = mult * (g + 1)
+            vertices_to_explore += [n for n in nghbs[current_vertex] if
+                                    n not in explored_vertices and n not in vertices_to_explore]
+
+    while len(explored_vertices) < N:
+        for i in range(N):
+            if groups[i] == 0:
+                for n in nghbs[i]:
+                    if groups[n] != 0:
                         groups[i] = groups[n]
                         explored_vertices.append(i)
                         break
-    
+
     return np.array(groups)
 
-def spectrogram_with_groups(graph, groups) :
+
+def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='Spectrogramm'):
     kernel_scale = 10
     window_kernel = create_heat_kernel(graph, kernel_scale)
     x = np.array([graph.U[i, int(groups[i])] for i in range(graph.N)])
     x /= np.linalg.norm(x)
-    spectrogram = compute_graph_spectrogram(graph, x, window_kernel)
+    plot_graph(graph, x)
+    spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=permutation)
+    plot_matrix(spectrogram,
+                cols_title="Vertex",
+                cols_labels=range(graph.N),
+                rows_title="Eigenvalue index",
+                rows_labels=range(graph.N),
+                title=title,
+                colorbar=True,
+                file_name=file_name)
     return spectrogram
+
 
 if __name__ == '__main__':
     from local_search import local_search
+
     Xsize = 250
     Ysize = 250
-    #graph = create_gaussian_kernel_graph(100, Xsize=Xsize, Ysize=Ysize)
+    # graph = create_gaussian_kernel_graph(100, Xsize=Xsize, Ysize=Ysize)
     graph = create_gaussian_kernel_graph(90, Xsize=Xsize, Ysize=Ysize)
     groups = create_groups_with_bfs(graph, nb_groups=3)
     print(groups.shape)
     print(groups)
-    plot_graph(graph, groups)
-
+    plot_graph(graph, groups, title='gaussian kernel graph with 3 groups got with BFS',
+               file_name='gaussian_kernel_graph.png')
 
 
     weights = get_adjacency_matrix(graph)
-    #best_permutation = smb2.spectral_sequencing(weights)
+    # best_permutation = smb2.spectral_sequencing(weights)
     best_permutation = smb2.mc_allister(weights)
     print(f'value of bandwith sum found  : {smb2.bandwidth_sum(best_permutation, weights)}')
 
@@ -312,7 +321,10 @@ if __name__ == '__main__':
     print(f'value of bandwith sum found  : {smb2.bandwidth_sum(best_permutation, weights)}')
 
     print(best_permutation)
-    spectrogram_on_particular_case(graph, best_permutation)
+    spectrogram_with_groups(graph, groups, permutation=best_permutation,
+                            file_name='spectrogram_gaussian_kernel_graph_groups_bfs.png',
+                            title='mc_allister then local search on gaussian kernel graph with 3 groups got with BFS')
+
 
 
 
