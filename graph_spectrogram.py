@@ -242,6 +242,7 @@ def spectrogram_on_particular_case(graph, permutation, file_name=None):
                 title="Spectrogram",
                 colorbar=True,
                 file_name=file_name)
+    return spectrogram
 
 
 def create_groups_with_bfs(graph, nb_groups=3):
@@ -279,21 +280,22 @@ def create_groups_with_bfs(graph, nb_groups=3):
     return np.array(groups)
 
 
-def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='Spectrogramm'):
+def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='Spectrogramm', plot=True):
     kernel_scale = 10
     window_kernel = create_heat_kernel(graph, kernel_scale)
     x = np.array([graph.U[i, int(groups[i])] for i in range(graph.N)])
     x /= np.linalg.norm(x)
-    plot_graph(graph, x)
     spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=permutation)
-    plot_matrix(spectrogram,
-                cols_title="Vertex",
-                cols_labels=range(graph.N),
-                rows_title="Eigenvalue index",
-                rows_labels=range(graph.N),
-                title=title,
-                colorbar=True,
-                file_name=file_name)
+    if plot:
+        plot_graph(graph, x)
+        plot_matrix(spectrogram,
+                    cols_title="Vertex",
+                    cols_labels=range(graph.N),
+                    rows_title="Eigenvalue index",
+                    rows_labels=range(graph.N),
+                    title=title,
+                    colorbar=True,
+                    file_name=file_name)
     return spectrogram
 
 
@@ -324,6 +326,7 @@ if __name__ == '__main__':
     spectrogram_with_groups(graph, groups, permutation=best_permutation,
                             file_name='spectrogram_gaussian_kernel_graph_groups_bfs.png',
                             title='mc_allister then local search on gaussian kernel graph with 3 groups got with BFS')
+
 
 
 
