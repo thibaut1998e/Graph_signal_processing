@@ -92,7 +92,7 @@ def plot_contribution_from_each_label(graph, permutation, divide_by_min=True):
     plt.show()
 
 
-def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=100, plot_spectro=True, **algo_args):
+def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=10, plot_spectro=True, **algo_args):
     """returns the average bandwith improvement compared to mc_allister and a random permutation, by generating nb_of_tests
     graphs
     algorithm is a function which takes a spectrogram as input (and possibly other arguments which are passed in algo_args)
@@ -101,9 +101,12 @@ def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=100, plot
     avg_improvement_random = 0
     avg_improvement_mc_allister = 0
     for i in range(nb_of_test):
-        graph = create_sbm_graph(nb_of_nodes) #generate a stochastic block model graph with 3 groups
+        #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) #generate a stochastic block model graph with 3 groups
+        graph = create_sbm_graph(nb_of_nodes)
         weights = get_adjacency_matrix(graph)
-        groups = create_groups_with_bfs(graph, nb_groups=3)
+        #groups = create_groups_with_bfs(graph, nb_groups=3)
+        groups = basic_groups(graph)
+        #plot_graph(graph, groups)
         spectrogram = spectrogram_with_groups(graph, groups, permutation=range(nb_of_nodes), plot=False)
         permutation = algorithm(spectrogram, **algo_args)
         bdwth = bandwidth_sum(permutation, weights)
