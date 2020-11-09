@@ -213,14 +213,17 @@ def get_neighbors(graph, vertex):
     return neighbors
 
 
+def basic_groups(graph):
+    return np.array([graph.N // 10] * (graph.N // 3) +
+                      [graph.N // 4] * (graph.N // 3) +
+                      [graph.N // 2] * (graph.N - 2 * (graph.N // 3)))
+
 def get_adjacency_matrix(graph):
     return [[graph.W[i, j] for i in range(graph.N)] for j in range(graph.N)]
 
 
 def spectrogram_on_particular_case(graph, permutation, file_name=None):
-    groups = np.array([graph.N // 10] * (graph.N // 3) +
-                      [graph.N // 4] * (graph.N // 3) +
-                      [graph.N // 2] * (graph.N - 2 * (graph.N // 3)))
+    groups = basic_groups(graph)
 
     # We use a window defined by a heat kernel
     # Needs to be instanciated on a particular vertex to be the object we want
