@@ -1,6 +1,5 @@
-
 from sum_bandwidth_2 import *
-from graph_spectrogram import plot_graph
+from graph_spectrogram import *
 
 
 def highest_row_intensities(spectrogram, N=3):
@@ -20,7 +19,7 @@ def highest_row_intensities(spectrogram, N=3):
                         break
     return indices, values
 
-def sort_highest_intensity_raw(spectrogram):
+def sort_highest_intensity_row(spectrogram):
     indices, _ = highest_row_intensities(spectrogram, N=1)  # get the index of the row of highest intensity
     _, perm = sorting_permutation(spectrogram[indices[0]])  # get the permutation used to sort the row of highest intensity
     return perm
@@ -92,7 +91,7 @@ def plot_contribution_from_each_label(graph, permutation, divide_by_min=True):
     plt.show()
 
 
-def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=10, plot_spectro=True, **algo_args):
+def test_rearrangement_algorithm(algorithm, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10, plot_spectro=False, **algo_args):
     """returns the average bandwith improvement compared to mc_allister and a random permutation, by generating nb_of_tests
     graphs
     algorithm is a function which takes a spectrogram as input (and possibly other arguments which are passed in algo_args)
@@ -105,9 +104,7 @@ def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=10, plot_
         graph = create_sbm_graph(nb_of_nodes)
         weights = get_adjacency_matrix(graph)
         #groups = create_groups_with_bfs(graph, nb_groups=3)
-        groups = basic_groups(graph)
-        #plot_graph(graph, groups)
-        spectrogram = spectrogram_with_groups(graph, groups, permutation=range(nb_of_nodes), plot=False)
+        spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions)
         permutation = algorithm(spectrogram, **algo_args)
         bdwth = bandwidth_sum(permutation, weights)
         bdwth_random = bandwidth_sum(np.random.permutation(nb_of_nodes), weights)
@@ -121,26 +118,68 @@ def test_rearrangemant_algorithm(algorithm, nb_of_nodes=90, nb_of_test=10, plot_
     avg_improvement_random/=nb_of_test
     return avg_improvement_random, avg_improvement_mc_allister
 
-
-rand_imp, allister_imp = test_rearrangemant_algorithm(sort_highest_intensity_raw)
-print('results with algorithm which sorts the raw of highest intensity')
+def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10) :
+    """returns the average bandwith improvements compared to mc_allister and a random permutation, by generating nb_of_tests
+    graphs
+    algorithms is a list of algorithms to test
+    these algorithms will be tested on the same graphs"""
+    avg_improvements_random = [0 for ind in range(len(algorithms))]
+    avg_improvements_mc_allister = [0 for ind in range(len(algorithms))]
+    nb_times_best_performance = [0 for ind in range(len(algorithms))]
+    for i in range(nb_of_test):
+        #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) 
+        graph = create_sbm_graph(nb_of_nodes) #generate a stochastic block model graph with 3 groups
+        weights = get_adjacency_matrix(graph)
+        #groups = create_groups_with_bfs(graph, nb_groups=3)
+        spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions)
+        bdwth_random = bandwidth_sum(np.random.permutation(nb_of_nodes), weights)
+        bdwth_allister = bandwidth_sum(smb2.mc_allister(weights), weights)
+        best_bdwth = 10 * bdwth_random
+        for ind in range(len(algorithms)) :
+            algorithm = algorithms[ind]
+            permutation = algorithm(spectrogram)
+            bdwth = bandwidth_sum(permutation, weights)
+            avg_improvements_random[ind] += (bdwth_random-bdwth)
+            avg_improvements_mc_allister[ind] += (bdwth_allister-bdwth)
+            if bdwth < best_bdwth :
+                best_bdwth = bdwth
+                best_algo = ind
+        nb_times_best_performance[best_algo] += 1
+    for ind in range(len(algorithms)) :
+        avg_improvements_mc_allister[ind]/=nb_of_test
+        avg_improvements_random[ind]/=nb_of_test
+    return avg_improvements_random, avg_improvements_mc_allister, nb_times_best_performance
+'''
+rand_imp, allister_imp = test_rearrangement_algorithm(sort_highest_intensity_row, 10)
+print('results with algorithm which sorts the row of highest intensity')
 print('average bandwidth improvement compared to random permutation : ', rand_imp)
 print('average bandwidth improvement compared to allister : ', allister_imp)
 
-rand_imp, allister_imp = test_rearrangemant_algorithm(sorting_sum_of_rows, N=3, fix_weights=False)
-print('results with algorithm which sorts the sum of 3 raws of highest intensity')
+rand_imp, allister_imp = test_rearrangement_algorithm(sorting_sum_of_rows, 10, N=3, fix_weights=False)
+print('results with algorithm which sorts the sum of 3 rows of highest intensity')
 print('average bandwidth improvement compared to random permutation : ', rand_imp)
 print('average bandwidth improvement compared to allister : ', allister_imp)
 
-rand_imp, allister_imp = test_rearrangemant_algorithm(first_halves_rows, N=3)
+rand_imp, allister_imp = test_rearrangement_algorithm(first_halves_rows, 10, N=3)
 print('results when using first halves of rows')
 print('average bandwidth improvement compared to random permutation : ', rand_imp)
 print('average bandwidth improvement compared to allister : ', allister_imp)
+'''
 
+algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, first_halves_rows]
+results = test_algorithms_on_same_graphs(algorithms, 1, 90, 10)
 
+print('results with algorithm which sorts the row of highest intensity')
+print('average bandwidth improvement compared to random permutation : ', results[0][0])
+print('average bandwidth improvement compared to allister : ', results[1][0])
+print('number of best performances : ', results[2][0])
 
-# perm_local_search, _ = local_search(perm_mc_allister, graph)
-# print(f'value of bandwith sum found local search from mc allister  : {bandwidth_sum(perm_local_search, weights)}')
+print('results with algorithm which sorts the sum of 3 rows of highest intensity')
+print('average bandwidth improvement compared to random permutation : ', results[0][1])
+print('average bandwidth improvement compared to allister : ', results[1][1])
+print('number of best performances : ', results[2][1])
 
-
-
+print('results when using first halves of rows')
+print('average bandwidth improvement compared to random permutation : ', results[0][2])
+print('average bandwidth improvement compared to allister : ', results[1][2])
+print('number of best performances : ', results[2][2])
