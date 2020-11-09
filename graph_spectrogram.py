@@ -301,6 +301,13 @@ def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='S
                     file_name=file_name)
     return spectrogram
 
+def spectrogram_with_several_repartitions(graph, nb_repartitions, nb_groups=3, permutation=None) :
+    spectrograms = []
+    for k in range(nb_repartitions) :
+        groups = create_groups_with_bfs(graph, nb_groups)
+        spectrogram = spectrogram_with_groups(graph, groups)
+        spectrograms.append(spectrogram)
+    return sum(spectrograms)
 
 if __name__ == '__main__':
     from local_search import local_search
