@@ -149,6 +149,44 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         avg_improvements_mc_allister[ind]/=nb_of_test
         avg_improvements_random[ind]/=nb_of_test
     return avg_improvements_random, avg_improvements_mc_allister, nb_times_best_performance
+
+def get_similarity(spectrogram, column1, column2, norm=1) :
+    if norm == 1 :
+        return 1 - sum([abs(spectrogram[column1][ind] - spectrogram[column2][ind]) for ind in range(len(spectrogram[0]))])
+    else :
+        list_to_sum = []
+        for ind in range(len(spectrogram)) :
+            list_to_sum.append(abs(spectrogram[column1][ind] - spectrogram[column2][ind]) **norm)
+        return 1 - sum(list_to_sum) ** (1/norm)
+
+def similarity_measure(spectrogram, permutation, norm=1) :
+    return sum([get_similarity(spectrogram, permutation[ind], permutation[ind+1], norm) for ind in range(len(permutation)-1)])
+
+def get_similarities(spectrogram, norm=1) :
+    similarities = np.zeros((len(spectrogram), len(spectrogram[0])))
+    for i in range(len(similarities)) :
+        for j in range(i) :
+            similarity = get_similarity(spectrogram, i, j, norm)
+            similarities[i][j] = similarity
+            similarities[j][i] = similarity
+    return similarities
+
+def greedy_permutation(spectrogram, norm=1) :
+    similarities = get_similarities(spectrogram)    
+    added = [False for ind in range(len(spectrogram))]
+    current_column = 0
+    permutation = [0]
+    added[0] = True
+    while len(permutation) < len(spectrogram) :
+        best_ind = current_column
+        for ind in range(len(similarities[current_column])) :
+            if not added[ind] and similarities[current_column][ind] > similarities[current_column][best_ind] :
+                best_ind = ind
+        current_column = best_ind
+        permutation.append(best_ind)
+        added[best_ind] = True
+    return permutation
+
 '''
 rand_imp, allister_imp = test_rearrangement_algorithm(sort_highest_intensity_row, 10)
 print('results with algorithm which sorts the row of highest intensity')
@@ -165,8 +203,8 @@ print('results when using first halves of rows')
 print('average bandwidth improvement compared to random permutation : ', rand_imp)
 print('average bandwidth improvement compared to allister : ', allister_imp)
 '''
-
-algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, first_halves_rows]
+'''
+algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, first_halves_rows, greedy_permutation]
 results = test_algorithms_on_same_graphs(algorithms, 1, 90, 10)
 
 print('results with algorithm which sorts the row of highest intensity')
@@ -183,3 +221,10 @@ print('results when using first halves of rows')
 print('average bandwidth improvement compared to random permutation : ', results[0][2])
 print('average bandwidth improvement compared to allister : ', results[1][2])
 print('number of best performances : ', results[2][2])
+
+print('results when greedily maximizing the similarity measure')
+print('average bandwidth improvement compared to random permutation : ', results[0][3])
+print('average bandwidth improvement compared to allister : ', results[1][3])
+print('number of best performances : ', results[2][3])
+'''
+
