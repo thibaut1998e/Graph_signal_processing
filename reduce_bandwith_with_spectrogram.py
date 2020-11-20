@@ -151,6 +151,8 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
     return avg_improvements_random, avg_improvements_mc_allister, nb_times_best_performance
 
 def get_similarity(spectrogram, column1, column2, norm=1) :
+    """returns a similarity between two columns of a given spectrogram
+    this similarity is inferior to 1 and should be positive unless the columns are very different"""
     if norm == 1 :
         return 1 - sum([abs(spectrogram[column1][ind] - spectrogram[column2][ind]) for ind in range(len(spectrogram[0]))])
     else :
@@ -160,9 +162,11 @@ def get_similarity(spectrogram, column1, column2, norm=1) :
         return 1 - sum(list_to_sum) ** (1/norm)
 
 def similarity_measure(spectrogram, permutation, norm=1) :
+    """returns a similarity measure for the spectrogram with a given permutation which is the sum of similarities between each pair of neighboring columns"""
     return sum([get_similarity(spectrogram, permutation[ind], permutation[ind+1], norm) for ind in range(len(permutation)-1)])
 
 def get_similarities(spectrogram, norm=1) :
+    """computes a n*n matrix (n = the number of columns of the spectrograph) containing the similarities between each pair of its columns"""
     similarities = np.zeros((len(spectrogram), len(spectrogram[0])))
     for i in range(len(similarities)) :
         for j in range(i) :
@@ -172,6 +176,7 @@ def get_similarities(spectrogram, norm=1) :
     return similarities
 
 def greedy_permutation(spectrogram, norm=1) :
+    """greedily computes a permutation that should have a high similarity measure for the given spectrogram"""
     similarities = get_similarities(spectrogram)    
     added = [False for ind in range(len(spectrogram))]
     current_column = 0
