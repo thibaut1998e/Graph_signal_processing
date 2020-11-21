@@ -2,8 +2,9 @@ import numpy as np
 import pygsp
 import os
 import matplotlib.pyplot as plt
-import sum_bandwidth as smb
+#import sum_bandwidth as smb
 import sum_bandwidth_2 as smb2
+
 
 np.random.seed(0)
 OUTPUT_DIR = "output/"
@@ -283,13 +284,13 @@ def create_groups_with_bfs(graph, nb_groups=3):
     return np.array(groups)
 
 
-def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='Spectrogramm', plot=True):
+def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='Spectrogramm', plot_spectro=False):
     kernel_scale = 10
     window_kernel = create_heat_kernel(graph, kernel_scale)
     x = np.array([graph.U[i, int(groups[i])] for i in range(graph.N)])
     x /= np.linalg.norm(x)
     spectrogram = compute_graph_spectrogram(graph, x, window_kernel, permutation=permutation)
-    if plot:
+    if plot_spectro:
         plot_graph(graph, x)
         plot_matrix(spectrogram,
                     cols_title="Vertex",
@@ -301,11 +302,13 @@ def spectrogram_with_groups(graph, groups, permutation, file_name=None, title='S
                     file_name=file_name)
     return spectrogram
 
-def spectrogram_with_several_repartitions(graph, nb_repartitions, nb_groups=3, permutation=None) :
+def spectrogram_with_several_repartitions(graph, nb_repartitions, nb_groups=3, permutation=None, plot=False) :
     spectrograms = []
     for k in range(nb_repartitions) :
         groups = create_groups_with_bfs(graph, nb_groups)
-        spectrogram = spectrogram_with_groups(graph, groups)
+        if plot:
+            plot_graph(graph, groups)
+        spectrogram = spectrogram_with_groups(graph, groups, permutation)
         spectrograms.append(spectrogram)
     return sum(spectrograms)
 
