@@ -99,26 +99,29 @@ def test_rearrangement_algorithm(algorithm, nb_repartitions=1, nb_of_nodes=90, n
     if plot spectro it will plot the spectrogramm of the first generated graph after reordering"""
     avg_improvement_random = 0
     avg_improvement_mc_allister = 0
+    avg_bdwth = 0
     for i in range(nb_of_test):
         #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) #generate a stochastic block model graph with 3 groups
         graph = create_sbm_graph(nb_of_nodes)
         weights = get_adjacency_matrix(graph)
         #groups = create_groups_with_bfs(graph, nb_groups=3)
-        spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions)
+        spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions, plot=(i==0 and plot_spectro))
         permutation = algorithm(spectrogram, **algo_args)
         bdwth = bandwidth_sum(permutation, weights)
         bdwth_random = bandwidth_sum(np.random.permutation(nb_of_nodes), weights)
         bdwth_allister = bandwidth_sum(smb2.mc_allister(weights), weights)
         avg_improvement_random += (bdwth_random-bdwth)
         avg_improvement_mc_allister += (bdwth_allister-bdwth)
+        avg_bdwth += bdwth
         if i == 0 and plot_spectro:
             spectrogram_example = spectrogram[:, permutation]
             plot_matrix(spectrogram_example)
     avg_improvement_mc_allister/=nb_of_test
     avg_improvement_random/=nb_of_test
-    return avg_improvement_random, avg_improvement_mc_allister
+    avg_bdwth/=nb_of_test
+    return avg_improvement_random, avg_improvement_mc_allister, avg_bdwth
 
-def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10) :
+def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10, plot_densities=False) :
     """returns the average bandwith improvements compared to mc_allister and a random permutation, by generating nb_of_tests
     graphs
     algorithms is a list of algorithms to test
@@ -126,6 +129,9 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
     avg_improvements_random = [0 for ind in range(len(algorithms))]
     avg_improvements_mc_allister = [0 for ind in range(len(algorithms))]
     nb_times_best_performance = [0 for ind in range(len(algorithms))]
+    bdwths_random = []
+    bdwths_allister = []
+    bddwths_algorithms = [[] for _ in range(len(algorithms))]
     for i in range(nb_of_test):
         #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) 
         graph = create_sbm_graph(nb_of_nodes) #generate a stochastic block model graph with 3 groups
@@ -133,12 +139,15 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         #groups = create_groups_with_bfs(graph, nb_groups=3)
         spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions)
         bdwth_random = bandwidth_sum(np.random.permutation(nb_of_nodes), weights)
+        bdwths_random.append(bdwth_random)
         bdwth_allister = bandwidth_sum(smb2.mc_allister(weights), weights)
+        bdwths_allister.append(bdwth_allister)
         best_bdwth = 10 * bdwth_random
         for ind in range(len(algorithms)) :
             algorithm = algorithms[ind]
             permutation = algorithm(spectrogram)
             bdwth = bandwidth_sum(permutation, weights)
+            bddwths_algorithms[ind].append(bdwth)
             avg_improvements_random[ind] += (bdwth_random-bdwth)
             avg_improvements_mc_allister[ind] += (bdwth_allister-bdwth)
             if bdwth < best_bdwth :
@@ -148,18 +157,48 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
     for ind in range(len(algorithms)) :
         avg_improvements_mc_allister[ind]/=nb_of_test
         avg_improvements_random[ind]/=nb_of_test
+    if plot_densities:
+        X = np.linspace(min(bdwths_allister)-1000, max(bdwths_random)+1000, 1000)
+        print(len(X))
+        kde_random = KDE(X, bdwths_random)
+        plt.plot(X, kde_random, label='random')
+        kde_allister = KDE(X, bdwths_allister)
+        plt.plot(X, kde_allister, label='allister')
+        for ind in range(len(algorithms)):
+            kde_alg = KDE(X, bddwths_algorithms[ind])
+            plt.plot(X, kde_alg, label=algorithms[ind].__name__)
+        plt.legend()
+        plt.show()
+
     return avg_improvements_random, avg_improvements_mc_allister, nb_times_best_performance
+
+
+def kde(x, data, h):
+    """1d kernel density estimator at point x, bandwith h"""
+    return sum([kernel((x - data[i]) / h) for i in range(len(data))]) / (len(data) * h)
+
+
+def kernel(x):
+    return np.exp(-x ** 2 / 2) / np.sqrt(2 * np.pi)
+
+
+def KDE(X, data, h=None):
+    """kernel density estimator for each point in X"""
+    if h is None:
+        sigma = np.std(data)
+        h = 1.06*sigma*len(data)**(-1/5)
+    return [kde(x, data, h) for x in X]
+
+
+
 
 def get_similarity(spectrogram, column1, column2, norm=1) :
     """returns a similarity between two columns of a given spectrogram
     this similarity is inferior to 1 and should be positive unless the columns are very different"""
-    if norm == 1 :
-        return 1 - sum([abs(spectrogram[column1][ind] - spectrogram[column2][ind]) for ind in range(len(spectrogram[0]))])
-    else :
-        list_to_sum = []
-        for ind in range(len(spectrogram)) :
-            list_to_sum.append(abs(spectrogram[column1][ind] - spectrogram[column2][ind]) **norm)
-        return 1 - sum(list_to_sum) ** (1/norm)
+    list_to_sum = []
+    for ind in range(len(spectrogram)) :
+        list_to_sum.append(abs(spectrogram[ind][column1] - spectrogram[ind][column2])**norm)
+    return 1 - sum(list_to_sum) ** (1/norm)
 
 def similarity_measure(spectrogram, permutation, norm=1) :
     """returns a similarity measure for the spectrogram with a given permutation which is the sum of similarities between each pair of neighboring columns"""
@@ -177,7 +216,7 @@ def get_similarities(spectrogram, norm=1) :
 
 def greedy_permutation(spectrogram, norm=1) :
     """greedily computes a permutation that should have a high similarity measure for the given spectrogram"""
-    similarities = get_similarities(spectrogram)    
+    similarities = get_similarities(spectrogram, norm)
     added = [False for ind in range(len(spectrogram))]
     current_column = 0
     permutation = [0]
@@ -208,6 +247,7 @@ print('results when using first halves of rows')
 print('average bandwidth improvement compared to random permutation : ', rand_imp)
 print('average bandwidth improvement compared to allister : ', allister_imp)
 '''
+
 '''
 algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, first_halves_rows, greedy_permutation]
 results = test_algorithms_on_same_graphs(algorithms, 1, 90, 10)
@@ -232,4 +272,5 @@ print('average bandwidth improvement compared to random permutation : ', results
 print('average bandwidth improvement compared to allister : ', results[1][3])
 print('number of best performances : ', results[2][3])
 '''
+
 
