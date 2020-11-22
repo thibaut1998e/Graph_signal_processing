@@ -43,7 +43,7 @@ def sorting_sum_of_rows(spectrogram, N=3, fix_weights=False):
         indices.sort(key=lambda i: values_dict[i], reverse=True)
         for i in range(1, len(indices)):
             weights[i] = sum(spectrogram[indices[i - 1]]) * weights[i - 1] / (2 * sum(spectrogram[indices[i]]))
-        print(weights)
+
     sum_of_rows = [0 for i in range(len(spectrogram[0]))]
     for ind in range(len(indices)):
         for i in range(len(sum_of_rows)):
@@ -159,7 +159,6 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         avg_improvements_random[ind]/=nb_of_test
     if plot_densities:
         X = np.linspace(min(bdwths_allister)-1000, max(bdwths_random)+1000, 1000)
-        print(len(X))
         kde_random = KDE(X, bdwths_random)
         plt.plot(X, kde_random, label='random')
         kde_allister = KDE(X, bdwths_allister)
@@ -167,6 +166,9 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         for ind in range(len(algorithms)):
             kde_alg = KDE(X, bddwths_algorithms[ind])
             plt.plot(X, kde_alg, label=algorithms[ind].__name__)
+        plt.xlabel('bandwith')
+        plt.ylabel('pdf')
+        plt.title(f'bandwith repartition on {nb_of_test} different graphs')
         plt.legend()
         plt.show()
 
@@ -214,8 +216,9 @@ def get_similarities(spectrogram, norm=1) :
             similarities[j][i] = similarity
     return similarities
 
-def greedy_permutation(spectrogram, norm=1) :
+def greedy_permutation(spectrogram, norm=1, weights=None, n_iter_loc_search=20) :
     """greedily computes a permutation that should have a high similarity measure for the given spectrogram"""
+
     similarities = get_similarities(spectrogram, norm)
     added = [False for ind in range(len(spectrogram))]
     current_column = 0
@@ -230,6 +233,76 @@ def greedy_permutation(spectrogram, norm=1) :
         permutation.append(best_ind)
         added[best_ind] = True
     return permutation
+
+
+def greedy_and_local_search(spectrogram, norm=1, weights=None, n_iter_loc_search=100):
+    permutation = greedy_permutation(spectrogram, norm=norm)
+    return local_search_similarity_measure(spectrogram, permutation, weights=weights, nb_max_iter=n_iter_loc_search)
+
+
+def local_search_similarity_measure(spectrogram, initial_solution=None, nb_max_iter=100, weights=None):
+    n = len(spectrogram)
+    if initial_solution is None:
+        initial_solution = np.random.permutation(n)
+    similarity = similarity_measure(spectrogram, initial_solution)
+    S = get_similarities(spectrogram)
+    best_value = similarity
+    stop = False
+    cpt = 0
+    solution = cp.copy(initial_solution)
+    similarities = []
+    bandwiths = []
+    while not stop and cpt < nb_max_iter:
+        cpt += 1
+        best_i = -1
+        best_j = -1
+        for i in range(n):
+            for j in range(i+1, n):
+                variation = 0
+                if i > 0:
+                    variation -= S[solution[i], solution[i-1]]
+                    variation += S[solution[j], solution[i-1]]
+                if j > 0:
+                    variation -= S[solution[j], solution[j-1]]
+                    variation += S[solution[i], solution[j-1]]
+                if i < n-1:
+                    variation -= S[solution[i], solution[i+1]]
+                    variation += S[solution[j], solution[i+1]]
+                if j < n-1:
+                    variation -= S[solution[j], solution[j+1]]
+                    variation += S[solution[i], solution[j+1]]
+                if similarity + variation > best_value:
+                    best_value = similarity + variation
+                    best_i = i
+                    best_j = j
+        similarity = best_value
+        stop = (i==-1)
+        if not stop:
+            solution[best_i], solution[best_j] = solution[best_j], solution[best_i]
+        similarities.append(similarity)
+        if weights is not None:
+            bdwth = bandwidth_sum(solution, weights)
+            bandwiths.append(bdwth)
+    if weights is not None:
+        plt.plot(range(len(bandwiths)), bandwiths)
+        plt.xlabel('iteration')
+        plt.ylabel('bandwith')
+        plt.title('bandwith evolution while performing local search on the similarity indicator')
+        plt.show()
+        plt.plot(range(len(similarities)), similarities)
+        plt.xlabel('iteration')
+        plt.ylabel('similarity indicator')
+        plt.title('local search on similarity indicator')
+
+
+    return solution
+
+
+#rand_imp, allister_imp, avg_bdwth = test_rearrangement_algorithm(local_search_similarity_measure,
+                                                                 #plot_spectro=False, nb_repartitions=3)
+#rand_imp, allister_imp, avg_bdwth = test_rearrangement_algorithm(greedy_permutation,
+                                                                 #plot_spectro=False, nb_repartitions=3)
+
 
 '''
 rand_imp, allister_imp = test_rearrangement_algorithm(sort_highest_intensity_row, 10)
