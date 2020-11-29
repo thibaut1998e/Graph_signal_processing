@@ -1,6 +1,8 @@
 from sum_bandwidth_2 import *
 from graph_spectrogram import *
 
+import TSP
+import TSP_MIP_solving
 
 def highest_row_intensities(spectrogram, N=3):
     """returns the indices of the N rows of highest intesity in spectrogramm"""
