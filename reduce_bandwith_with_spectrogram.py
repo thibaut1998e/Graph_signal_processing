@@ -133,6 +133,7 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
     bdwths_allister = []
     bddwths_algorithms = [[] for _ in range(len(algorithms))]
     for i in range(nb_of_test):
+        print(f"Iteration {i+1} out of {nb_of_test}")
         #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) 
         graph = create_sbm_graph(nb_of_nodes) #generate a stochastic block model graph with 3 groups
         weights = get_adjacency_matrix(graph)
@@ -144,8 +145,13 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         bdwths_allister.append(bdwth_allister)
         best_bdwth = 10 * bdwth_random
         for ind in range(len(algorithms)) :
+            translation = False
             algorithm = algorithms[ind]
+            if type(algorithm) == tuple :
+                algorithm, translation = algorithm
             permutation = algorithm(spectrogram)
+            if translation :
+                permutation = best_translation(permutation, weights)
             bdwth = bandwidth_sum(permutation, weights)
             bddwths_algorithms[ind].append(bdwth)
             avg_improvements_random[ind] += (bdwth_random-bdwth)
@@ -159,16 +165,20 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         avg_improvements_random[ind]/=nb_of_test
     if plot_densities:
         X = np.linspace(min(bdwths_allister)-1000, max(bdwths_random)+1000, 1000)
+        print(len(X))
         kde_random = KDE(X, bdwths_random)
         plt.plot(X, kde_random, label='random')
         kde_allister = KDE(X, bdwths_allister)
         plt.plot(X, kde_allister, label='allister')
         for ind in range(len(algorithms)):
             kde_alg = KDE(X, bddwths_algorithms[ind])
-            plt.plot(X, kde_alg, label=algorithms[ind].__name__)
-        plt.xlabel('bandwith')
-        plt.ylabel('pdf')
-        plt.title(f'bandwith repartition on {nb_of_test} different graphs')
+            if type(algorithms[ind]) == tuple :
+                name = algorithms[ind][0].__name__
+                if algorithms[ind][1] :
+                    name += " (T)"
+            else :
+                name = algorithms[ind].__name__
+            plt.plot(X, kde_alg, label=name)
         plt.legend()
         plt.show()
 
@@ -215,6 +225,18 @@ def get_similarities(spectrogram, norm=1) :
             similarities[i][j] = similarity
             similarities[j][i] = similarity
     return similarities
+
+def get_relative_similarities(spectrogram, norm=1) :
+    n = len(spectrogram)
+    similarities = get_similarities(spectrogram, norm)
+    sums_of_similarities = [sum(similarities[i]) for i in range(n)]
+    relative_similarities = np.zeros((len(spectrogram), len(spectrogram[0])))
+    for i in range(n) :
+        for j in range(i) :
+            similarity = similarities[i][j] * 2 * n / (sums_of_similarities[i] + sums_of_similarities[j])
+            relative_similarities[i][j] = similarity
+            relative_similarities[j][i] = similarity
+    return relative_similarities
 
 def greedy_permutation(spectrogram, norm=1, weights=None, n_iter_loc_search=20) :
     """greedily computes a permutation that should have a high similarity measure for the given spectrogram"""
@@ -297,6 +319,43 @@ def local_search_similarity_measure(spectrogram, initial_solution=None, nb_max_i
 
     return solution
 
+def best_permutation(spectrogram, norm=1) :
+    similarities = get_relative_similarities(spectrogram, norm)
+    TSPpb = TSP.TSP(points=spectrogram, distances=-similarities)
+    solution, _ = TSP_MIP_solving.solveIterativeSubtourEliminationGurobi(TSPpb)
+    permutation = []
+    #for i in range(len(solution)) :
+        #print(solution[i])
+    for j in range(len(solution[0])) :
+        if solution[0][j] == 1 :
+            permutation.append(j)
+            break
+    while len(permutation) < len(solution) :
+        #print(permutation)
+        i = permutation[-1]
+        for j in range(len(solution[i])) :
+            if solution[i][j] == 1 :
+                permutation.append(j)
+                break
+    best_starting_point = permutation[0]
+    worst_similarity = similarities[permutation[-1]][permutation[0]]
+    for i in range(len(permutation)-1) :
+        if similarities[permutation[i]][permutation[i+1]] < worst_similarity :
+            best_starting_point = i+1
+            worst_similarity = similarities[permutation[i]][permutation[i+1]]
+    permutation = permutation[best_starting_point :] + permutation[: best_starting_point]
+    return permutation
+
+def best_translation(permutation, weights) :
+    best_permutation = permutation
+    best_bdwth = bandwidth_sum(permutation, weights)
+    for i in range(1, len(permutation)) :
+        translated_permutation = permutation[i :] + permutation[: i]
+        translated_bdwth = bandwidth_sum(translated_permutation, weights)
+        if translated_bdwth < best_bdwth :
+            best_permutation = translated_permutation
+            best_bdwth = translated_bdwth
+    return best_permutation
 
 #rand_imp, allister_imp, avg_bdwth = test_rearrangement_algorithm(local_search_similarity_measure,
                                                                  #plot_spectro=False, nb_repartitions=3)
@@ -321,29 +380,24 @@ print('average bandwidth improvement compared to random permutation : ', rand_im
 print('average bandwidth improvement compared to allister : ', allister_imp)
 '''
 
-'''
-algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, first_halves_rows, greedy_permutation]
-results = test_algorithms_on_same_graphs(algorithms, 1, 90, 10)
-
-print('results with algorithm which sorts the row of highest intensity')
-print('average bandwidth improvement compared to random permutation : ', results[0][0])
-print('average bandwidth improvement compared to allister : ', results[1][0])
-print('number of best performances : ', results[2][0])
-
-print('results with algorithm which sorts the sum of 3 rows of highest intensity')
-print('average bandwidth improvement compared to random permutation : ', results[0][1])
-print('average bandwidth improvement compared to allister : ', results[1][1])
-print('number of best performances : ', results[2][1])
-
-print('results when using first halves of rows')
-print('average bandwidth improvement compared to random permutation : ', results[0][2])
-print('average bandwidth improvement compared to allister : ', results[1][2])
-print('number of best performances : ', results[2][2])
-
-print('results when greedily maximizing the similarity measure')
-print('average bandwidth improvement compared to random permutation : ', results[0][3])
-print('average bandwidth improvement compared to allister : ', results[1][3])
-print('number of best performances : ', results[2][3])
-'''
+if __name__ == '__main__' :
+    algorithms = [sort_highest_intensity_row, sorting_sum_of_rows, (greedy_permutation, True), (best_permutation, True)]
+    results = test_algorithms_on_same_graphs(algorithms, 3, 90, 40, plot_densities=True)
+    print('results with algorithm which sorts the row of highest intensity')
+    print('average bandwidth improvement compared to random permutation : ', results[0][0])
+    print('average bandwidth improvement compared to allister : ', results[1][0])
+    print('number of best performances : ', results[2][0])
+    print('results with algorithm which sorts the sum of 3 rows of highest intensity')
+    print('average bandwidth improvement compared to random permutation : ', results[0][1])
+    print('average bandwidth improvement compared to allister : ', results[1][1])
+    print('number of best performances : ', results[2][1])
+    print('results when greedily maximizing the similarity measure')
+    print('average bandwidth improvement compared to random permutation : ', results[0][2])
+    print('average bandwidth improvement compared to allister : ', results[1][2])
+    print('number of best performances : ', results[2][2])
+    print('results when optimally maximizing the similarity measure')
+    print('average bandwidth improvement compared to random permutation : ', results[0][3])
+    print('average bandwidth improvement compared to allister : ', results[1][3])
+    print('number of best performances : ', results[2][3])
 
 
