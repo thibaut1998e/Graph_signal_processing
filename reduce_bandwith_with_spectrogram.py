@@ -181,6 +181,9 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
             else :
                 name = algorithms[ind].__name__
             plt.plot(X, kde_alg, label=name)
+        plt.xlabel('bandwith')
+        plt.ylabel('pdf')
+        plt.title(f'bandwith repartition on {nb_of_test} different graphs')
         plt.legend()
         plt.show()
 
