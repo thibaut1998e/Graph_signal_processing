@@ -123,7 +123,7 @@ def test_rearrangement_algorithm(algorithm, nb_repartitions=1, nb_of_nodes=90, n
     avg_bdwth/=nb_of_test
     return avg_improvement_random, avg_improvement_mc_allister, avg_bdwth
 
-def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10, plot_densities=False) :
+def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90, nb_of_test=10, plot_densities=True) :
     """returns the average bandwith improvements compared to mc_allister and a random permutation, by generating nb_of_tests
     graphs
     algorithms is a list of algorithms to test
@@ -134,6 +134,8 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
     bdwths_random = []
     bdwths_allister = []
     bddwths_algorithms = [[] for _ in range(len(algorithms))]
+    simimarities_algotithms = [[] for _ in range(len(algorithms))]
+    similarities_random = []
     for i in range(nb_of_test):
         print(f"Iteration {i+1} out of {nb_of_test}")
         #graph = create_gaussian_kernel_graph(nb_of_nodes, Xsize=200, Ysize=200) 
@@ -141,7 +143,9 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         weights = get_adjacency_matrix(graph)
         #groups = create_groups_with_bfs(graph, nb_groups=3)
         spectrogram = spectrogram_with_several_repartitions(graph, nb_repartitions)
-        bdwth_random = bandwidth_sum(np.random.permutation(nb_of_nodes), weights)
+        random_perm = np.random.permutation(nb_of_nodes)
+        bdwth_random = bandwidth_sum(random_perm, weights)
+        similarities_random.append(similarity_measure(spectrogram, random_perm))
         bdwths_random.append(bdwth_random)
         bdwth_allister = bandwidth_sum(smb2.mc_allister(weights), weights)
         bdwths_allister.append(bdwth_allister)
@@ -158,6 +162,7 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
             bddwths_algorithms[ind].append(bdwth)
             avg_improvements_random[ind] += (bdwth_random-bdwth)
             avg_improvements_mc_allister[ind] += (bdwth_allister-bdwth)
+            simimarities_algotithms[ind].append(similarity_measure(spectrogram, permutation))
             if bdwth < best_bdwth :
                 best_bdwth = bdwth
                 best_algo = ind
@@ -166,10 +171,11 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
         avg_improvements_mc_allister[ind]/=nb_of_test
         avg_improvements_random[ind]/=nb_of_test
     if plot_densities:
+        colors = ['r', 'g', 'y', 'k', 'c', 'm', 'b']
         X = np.linspace(min(bdwths_allister)-1000, max(bdwths_random)+1000, 1000)
         print(len(X))
         kde_random = KDE(X, bdwths_random)
-        plt.plot(X, kde_random, label='random')
+        plt.plot(X, kde_random, label='random', color='m')
         kde_allister = KDE(X, bdwths_allister)
         plt.plot(X, kde_allister, label='allister')
         for ind in range(len(algorithms)):
@@ -180,10 +186,28 @@ def test_algorithms_on_same_graphs(algorithms, nb_repartitions=1, nb_of_nodes=90
                     name += " (T)"
             else :
                 name = algorithms[ind].__name__
-            plt.plot(X, kde_alg, label=name)
+            plt.plot(X, kde_alg, label=name, color=colors[ind])
         plt.xlabel('bandwith')
         plt.ylabel('pdf')
         plt.title(f'bandwith repartition on {nb_of_test} different graphs')
+        plt.legend()
+        plt.show()
+
+        X = np.linspace(86, 89, 1000)
+        kde_random = KDE(X, similarities_random)
+        plt.plot(X, kde_random, label='random', color='m')
+        for ind in range(len(algorithms)):
+            kde_alg = KDE(X, simimarities_algotithms[ind])
+            if type(algorithms[ind]) == tuple:
+                name = algorithms[ind][0].__name__
+                if algorithms[ind][1]:
+                    name += " (T)"
+            else:
+                name = algorithms[ind].__name__
+            plt.plot(X, kde_alg, label=name, color=colors[ind])
+        plt.xlabel('similarity measure')
+        plt.ylabel('pdf')
+        plt.title(f'similarity measure repartition with different algorithms to optimize it')
         plt.legend()
         plt.show()
 
