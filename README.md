@@ -1,6 +1,6 @@
 # Graph Signal Processing and Spectrogram Visualization via MinLA
 
-This readme gives of brief summary of our work, you can find a more detailed description in the article we wrote : *Analysis of the relation between the minLA problem and the
+This readme gives a brief summary of our work, you can find a more detailed description in the article we wrote : *Analysis of the relation between the minLA problem and the
  visualisation of a graph spectrogram* (first document of repesitory)
 
 ## Overview
