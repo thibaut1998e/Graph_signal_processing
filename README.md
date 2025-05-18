@@ -10,7 +10,7 @@ This project investigates the relationship between the **Minimum Linear Arrangem
 
 **Graph Signal Processing (GSP)** extends classical signal processing to data defined on graphs. A signal in this context assigns a value to each node of a graph. You can see bellow an example of a signal on a graph
 
-![Signal on a graph](signal_on_graph.png)
+![Signal on a graph](signal_on_graph.png "Example of a signal on a graph")
 
 ## Graph Spectrograms
 
