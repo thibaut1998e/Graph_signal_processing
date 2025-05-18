@@ -34,9 +34,8 @@ To visualize the spectrogram effectively, we need to **reorder its columns** so 
 
 The **MinLA** problem aims to assign integer labels (positions) to the nodes of a graph to **minimize the sum of absolute differences** between connected node labels:
 
-\[
-\text{Minimize: } \sum_{(i, j) \in E} |\phi(i) - \phi(j)|
-\]
+Minimize: ∑_{(i, j) ∈ E} |ϕ(i) - ϕ(j)|
+
 
 This naturally encourages adjacent nodes in the graph to be close in the ordering. A MinLA solution can thus serve as a candidate permutation for spectrogram columns.
 
