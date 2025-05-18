@@ -36,6 +36,7 @@ The **MinLA** problem aims to assign integer labels (positions) to the nodes of 
 
 Minimize: ∑_{(i, j) ∈ E} |ϕ(i) - ϕ(j)|
 
+where E is the set of edges in the graph
 
 This naturally encourages adjacent nodes in the graph to be close in the ordering. A MinLA solution can thus serve as a candidate permutation for spectrogram columns.
 
@@ -45,13 +46,11 @@ This naturally encourages adjacent nodes in the graph to be close in the orderin
 
 To assess the quality of a column permutation, we define a **similarity measure**:
 
-\[
-SM(S, P) = \sum_{j=1}^{N-1} \sum_{i=1}^{N} \left(1 - \left| S(i, P(j)) - S(i, P(j+1)) \right|^a \right)
-\]
+`SM(S, P) = ∑_{j=1}^{N−1} ∑_{i=1}^{N} [1 − |S(i, P(j)) − S(i, P(j+1))|^a]`
 
-- \( S \): Spectrogram matrix  
-- \( P \): Permutation of columns (i.e., node order)  
-- \( a \): Norm degree (we use \( a = 1 \))  
+- S: Spectrogram matrix  
+- P: Permutation of columns (i.e., node order)  
+- a: Norm degree (we use \( a = 1 \))  
 
 A high similarity measure implies that adjacent columns (nodes) in the permutation are spectrally similar, resulting in visually coherent bands in the spectrogram.
 
