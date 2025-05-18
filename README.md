@@ -1,5 +1,8 @@
 # Graph Signal Processing and Spectrogram Visualization via MinLA
 
+This readme gives of brief summary of our work, you can find a more detailed description in the article we wrote : *Analysis of the relation between the minLA problem and the
+ visualisation of a graph spectrogram* (first document of repesitory)
+
 ## Overview
 
 This project investigates the relationship between the **Minimum Linear Arrangement (MinLA)** problem and the **visualization of graph spectrograms**. It shows that solving MinLA provides meaningful ways to reorder columns in a graph spectrogram, enhancing interpretability. Conversely, optimizing the spectrogram visualization also leads to good MinLA solutions.
@@ -66,7 +69,7 @@ A high similarity measure implies that adjacent columns (nodes) in the permutati
 - **Optimizing the similarity indicator leads to lower MinLA costs**.
 - The **two problems are strongly correlated**: improvements in one often translate to the other.
 
-You can see bellow an exemple of spectrogram with optimal solution for similarit indicator 
+You can see bellow an exemple of spectrogram with optimal solution for similarity indicator 
 
 ![best](spectrogram_best_perm_similarity.PNG)
 
