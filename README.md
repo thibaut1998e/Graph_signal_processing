@@ -22,7 +22,9 @@ In classical signal processing, a **spectrogram** shows how the frequency conten
 4. Applying the GFT to each windowed signal.
 5. Building a matrix (spectrogram), where each **column corresponds to one node**
 
-**Problem:** Unlike time-series, graphs do not have a natural node order, making the spectrogram column ordering arbitrary and often visually uninformative.
+**Problem:** Unlike time-series, graphs do not have a natural node order, making the spectrogram column ordering arbitrary and often visually uninformative. You can see bellow a graph spectrogramm with random permutations used for columns.
+
+![spect](spectrogram.PNG)
 
 ---
 
@@ -63,5 +65,9 @@ A high similarity measure implies that adjacent columns (nodes) in the permutati
 - **MinLA permutations produce spectrograms with higher similarity indicators** than random orderings.
 - **Optimizing the similarity indicator leads to lower MinLA costs**.
 - The **two problems are strongly correlated**: improvements in one often translate to the other.
+
+You can see bellow an exemple of spectrogram with optimal solution for similarit indicator 
+
+![best](spectrogram_best_perm_similarity.PNG)
 
 ---
