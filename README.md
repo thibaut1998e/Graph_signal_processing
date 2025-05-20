@@ -22,7 +22,7 @@ In classical signal processing, a **spectrogram** shows how the frequency conten
 1. Choosing a **window function** (typically Gaussian-like).
 2. Placing the window at different nodes of the graph.
 3. Multiplying the window with the signal to localize it.
-4. Applying the GFT to each windowed signal.
+4. Applying the Graph Fourier Transform to each windowed signal.
 5. Building a matrix (spectrogram), where each **column corresponds to one node**
 
 **Problem:** Unlike time-series, graphs do not have a natural node order, making the spectrogram column ordering arbitrary and often visually uninformative. You can see bellow a graph spectrogramm with random permutations used for columns.
